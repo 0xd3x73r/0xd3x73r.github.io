@@ -1,0 +1,86 @@
+# ===== SECRETS & CREDENTIALS =====
+.env
+.env.*
+.env.local
+.env.development
+.env.production
+*.pem
+*.key
+*.cert
+*.p12
+*.pfx
+secrets.json
+secrets.yaml
+secrets.yml
+config.secret.*
+credentials.json
+credentials.yml
+private.key
+id_rsa
+id_rsa.pub
+*.secret
+*.token
+api_keys.txt
+api_keys.json
+token.json
+auth.json
+
+# ===== API KEYS / TOKENS =====
+# added some api key or token related things in other category. that's why nothing showing
+
+# ===== PERSONAL FILES =====
+personal/
+private/
+confidential/
+internal/
+notes/
+todo-private.txt
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+*.tmp
+*.bak
+*.swp
+*~
+
+# ===== WINDOWS SYSTEM FILES =====
+$RECYCLE.BIN/
+*.lnk
+
+# ===== EDITOR FILES =====
+.vscode/settings.json
+.vscode/*.code-workspace
+.idea/
+*.suo
+*.user
+*.userosscache
+
+# ===== LOGS & TEMP =====
+*.backup
+backup/
+backups/
+
+# ===== MAC (if collaborating) =====
+.AppleDouble
+
+# ===== NODE (if used later) =====
+node_modules/
+npm-debug.log
+.npm
+package-lock.json
+
+# ===== DATABASE =====
+*.sql
+*.sqlite
+*.db
+*.mdb
+
+# ===== PYTHON (if used) =====
+__pycache__/
+*.pyc
+venv/
+.python-version
+
+# ===== BACKUP FILES =====
+# added some backup related things in other category. that's why nothing showing
