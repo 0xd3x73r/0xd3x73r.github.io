@@ -11,11 +11,11 @@
 <meta name="description" content="0xd3x73r — Offensive security researcher. Red teamer. Vulnerability hunter."/>
 <meta name="keywords" content="cybersecurity, red team, exploit, malware, reverse engineering, CTF"/>
 <meta name="author" content="0xd3x73r"/>
-<meta property="og:title" content="0xd3x73r | Security Researcher"/>
-<meta property="og:description" content="Offensive security researcher. 0.001%."/>
+<meta property="og:title" content="0xd3x73r"/>
+<meta property="og:description" content="Offensive security researcher"/>
 <meta property="og:type" content="website"/>
 <meta name="theme-color" content="#000000"/>
-<title>0xd3x73r | Offensive Security Researcher</title>
+<title>0xd3x73r</title>
 
 <!-- ═══════════════════════════════════════════════
      BLOCK: FONTS
@@ -754,7 +754,7 @@ footer {
 
     <h1 class="hero-title">
       <span class="line1">0xd3x73r</span>
-      <span class="line2">Offensive Security Researcher</span>
+      <span class="line2"></span>
     </h1>
 
     <p class="hero-tagline">
@@ -806,11 +806,12 @@ footer {
 
     <div class="about-text sr">
       <p>
-        I break systems to understand them.
+        
       </p>
       <p>
-        A passionate offensive security researcher and penetration tester with 4+ years of hands-on experience in offensive security, vulnerability assessment, and adversarial testing. My work focuses on identifying weaknesses before real attackers do.
+        I am Roshan, a passionate offensive security researcher and penetration tester with 4+ years of hands-on experience in offensive security, vulnerability assessment, and adversarial testing. My work focuses on identifying weaknesses before real attackers do.
       </p>
+      <p>I break systems to understand them.</p>
       <!-- <p>
         Currently <em>highlighting content</em>exploring: <strong>binary exploitation</strong>, hardware attack surfaces,
         and the dark corners of modern operating systems nobody bothers to audit.
@@ -835,6 +836,11 @@ footer {
      BLOCK: ACTIVITY FEED
      ADD: duplicate .tl-item, update content
 ════════════════════════════════════════════════ -->
+
+<!--
+Recent Activity --------<
+
+
 <section id="activity" class="sec">
   <div class="wrap">
     <div class="sec-eyebrow">// Intel Feed</div>
@@ -882,6 +888,12 @@ footer {
   </div>
 </section>
 
+
+Recent Activity --------<
+-->    
+
+
+
 <hr class="divider"/>
 
 <!-- ═══════════════════════════════════════════════
@@ -896,12 +908,12 @@ footer {
 
     <div class="blog-grid">
 
-      <a href="blog_template.html" class="blog-card sr">
-        <span class="card-cat">Red Teaming</span>
-        <h3 class="card-title">Lateral Movement Through Misconfigured MSSQL Linked Servers</h3>
-        <p class="card-excerpt">How a single developer mistake in a database linkage gave me keys to the entire corporate forest.</p>
+      <a href="./blog/esp8266__WiFi-Jammer__Fake-AP.html" class="blog-card sr">
+        <span class="card-cat">WiFi Hacking</span>
+        <h3 class="card-title">How to create WiFi jammer and fake Access Point (AP) with NodeMCU(ESP8266)</h3>
+        <p class="card-excerpt">A hands-on guide to turning a NodeMCU ESP8266 into a WiFi security testing tool — covering deauth attacks, fake Access Point creation, and beacon flooding using the ESP8266 Deauther firmware. For educational purposes only.</p>
         <div class="card-footer">
-          <span class="card-date">2025-01-10</span>
+          <span class="card-date">2022-09-08</span>
           <span class="card-read">READ</span>
         </div>
       </a>
@@ -955,6 +967,27 @@ footer {
           <span class="card-read">READ</span>
         </div>
       </a>
+
+
+
+
+
+
+
+      <!--  ADD BLOGS HERE
+      
+            <a href="#" class="blog-card sr">
+        <span class="card-cat">Malware Analysis</span>
+        <h3 class="card-title">Dissecting a Nation-State RAT: Command Architecture Deep Dive</h3>
+        <p class="card-excerpt">Static and dynamic analysis of a sophisticated remote access trojan. C2 protocol reverse engineered.</p>
+        <div class="card-footer">
+          <span class="card-date">2024-11-05</span>
+          <span class="card-read">READ</span>
+        </div>
+      </a>
+      
+      -->
+
 
     </div>
   </div>
@@ -1215,6 +1248,7 @@ END HERE -->
      Green spark trail fades out naturally.
      All disabled on mobile ≤768px.
 ════════════════════════════════════════════════ -->
+<!--
 <script>
 (function(){
   if(window.innerWidth<=768) return;
@@ -1269,6 +1303,96 @@ END HERE -->
   })();
 })();
 </script>
+-->
+
+<!-- NEW CURSOR AND FLOATING PARTICLES -- START -->
+<script>
+(function(){
+  if(window.innerWidth<=768) return;
+
+  var dot  = document.getElementById('cursor-dot');
+  var ring = document.getElementById('cursor-ring');
+  var tc   = document.getElementById('trail-canvas');
+  var tx   = tc.getContext('2d');
+  var mx=0, my=0, rx=0, ry=0, sparks=[], particles=[];
+
+  function rsz(){ tc.width=window.innerWidth; tc.height=window.innerHeight; }
+  rsz(); window.addEventListener('resize', function(){ rsz(); initParticles(); });
+
+  /* ── Ambient floating particles ── */
+  function spawnParticle(randomY){
+    return {
+      x:     Math.random() * tc.width,
+      y:     randomY ? Math.random() * tc.height : tc.height + 4,
+      vx:    (Math.random() - 0.5) * 0.4,
+      vy:    -(Math.random() * 0.5 + 0.15),
+      r:     Math.random() * 1.4 + 0.4,
+      alpha: Math.random() * 0.30 + 0.06,
+      col:   Math.random() > 0.5 ? '0,255,136' : '0,220,160'
+    };
+  }
+  function initParticles(){
+    particles = [];
+    var n = Math.min(Math.floor(tc.width * tc.height / 9000), 45);
+    for(var i = 0; i < n; i++) particles.push(spawnParticle(true));
+  }
+  initParticles();
+
+  /* ── Mouse trail sparks ── */
+  document.addEventListener('mousemove', function(e){
+    mx = e.clientX; my = e.clientY;
+    dot.style.left = mx+'px'; dot.style.top = my+'px';
+    if(Math.random() > 0.45) return;
+    sparks.push({
+      x: mx, y: my,
+      vx: (Math.random()-0.5)*1.8, vy: (Math.random()-0.5)*1.8,
+      r: Math.random()*2.2+0.6, alpha: 0.55,
+      col: Math.random()>0.5 ? '0,255,136' : '0,220,160'
+    });
+  });
+
+  /* ── Hover / click states ── */
+  document.querySelectorAll('a,button,.blog-card,.social-btn,.tag,.tl-item').forEach(function(el){
+    el.addEventListener('mouseenter', function(){ ring.classList.add('hovering'); });
+    el.addEventListener('mouseleave', function(){ ring.classList.remove('hovering'); });
+  });
+  document.addEventListener('mousedown', function(){ ring.classList.add('clicking'); });
+  document.addEventListener('mouseup',   function(){ ring.classList.remove('clicking'); });
+
+  /* ── Main loop ── */
+  (function loop(){
+    /* Ring lag */
+    rx += (mx-rx)*0.13; ry += (my-ry)*0.13;
+    ring.style.left = rx+'px'; ring.style.top = ry+'px';
+
+    tx.clearRect(0, 0, tc.width, tc.height);
+
+    /* Ambient particles */
+    for(var i = particles.length-1; i >= 0; i--){
+      var p = particles[i];
+      p.x += p.vx; p.y += p.vy;
+      if(p.y < -4){ particles[i] = spawnParticle(false); continue; }
+      if(p.x < -4)       p.x = tc.width + 4;
+      if(p.x > tc.width+4) p.x = -4;
+      tx.beginPath(); tx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      tx.fillStyle = 'rgba('+p.col+','+p.alpha+')'; tx.fill();
+    }
+
+    /* Mouse trail sparks */
+    for(var j = sparks.length-1; j >= 0; j--){
+      var s = sparks[j];
+      s.x += s.vx; s.y += s.vy; s.alpha -= 0.030; s.r *= 0.97;
+      if(s.alpha <= 0){ sparks.splice(j,1); continue; }
+      tx.beginPath(); tx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+      tx.fillStyle = 'rgba('+s.col+','+s.alpha+')'; tx.fill();
+    }
+
+    requestAnimationFrame(loop);
+  })();
+})();
+</script>
+<!-- NEW CURSOR AND FLOATING PARTICLES -- END -->
+
 
 <!-- ═══════════════════════════════════════════════
      BLOCK: JS — MOBILE CLICK SPARK BURST

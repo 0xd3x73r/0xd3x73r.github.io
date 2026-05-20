@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="description" content="A hands-on guide to turning a NodeMCU ESP8266 into a WiFi security testing tool — covering deauth attacks, fake Access Point creation, and beacon flooding using the ESP8266 Deauther firmware. For educational purposes only."/>
+<meta name="keywords" content="ESP8266, NodeMCU, WiFi Jammer, Fake Access Point, Deauth Attack, ESP8266 Deauther, WiFi Hacking, Cybersecurity, Ethical Hacking, Penetration Testing, Arduino, IoT Security"/>
+<meta name="author" content="dexter | 0xd3x73r"/>
+
+<!-- Open Graph -->
+<meta property="og:title" content="How to create WiFi jammer and fake Access Point (AP) with NodeMCU(ESP8266) — 0xd3x73r"/>
+<meta property="og:description" content="A hands-on guide to turning a NodeMCU ESP8266 into a WiFi security testing tool — covering deauth attacks, fake Access Point creation, and beacon flooding using the ESP8266 Deauther firmware. For educational purposes only."/>
+<meta property="og:type" content="article"/>
+<meta property="og:url" content="https://medium.com/@nroshan005/how-to-create-wifi-jammer-and-fake-access-point-ap-with-nodemcu-esp8266-85cc723d087c"/>
+<meta property="og:image" content="https://miro.medium.com/v2/resize:fit:1200/1*45FpI5bqm0QhjT7n-klV2Q.jpeg"/>
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="WiFi Jammer & Fake AP with NodeMCU ESP8266 | 0xd3x73r"/>
+<meta name="twitter:description" content="Step-by-step: flash ESP8266 Deauther firmware, scan networks, launch deauth/beacon/probe attacks — educational wireless security demo."/>
+<meta name="twitter:image" content="https://miro.medium.com/v2/resize:fit:1200/1*45FpI5bqm0QhjT7n-klV2Q.jpeg"/>
+<meta name="twitter:creator" content="@0xd3X73r"/>
+
+<meta name="theme-color" content="#000000"/>
+<title>How to create WiFi jammer and fake Access Point (AP) with NodeMCU(ESP8266) — 0xd3x73r</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Share+Tech+Mono&family=IBM+Plex+Serif:ital,wght@0,300;0,400;0,500;1,300;1,400&display=swap" rel="stylesheet"/>
+
+<style>
+:root {
+  --bg:          #000000;
+  --bg-card:     #0a0a0a;
+  --bg-glass:    rgba(255,255,255,0.03);
+  --white:       #f0f0f0;
+  --grey-hi:     #c8c8c8;
+  --grey-mid:    #7a7a7a;
+  --grey-lo:     #3a3a3a;
+  --border:      rgba(255,255,255,0.10);
+  --border-hi:   rgba(255,255,255,0.22);
+  --glow-sm:     0 0 8px rgba(255,255,255,0.15);
+  --font-type:   'Courier Prime', 'Courier New', monospace;
+  --font-display:'Courier Prime', 'Courier New', monospace;
+  --font-mono:   'Share Tech Mono', monospace;
+  --font-serif:  'IBM Plex Serif', serif;
+  --radius:      2px;
+  --content-w:   680px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; font-size: 16px; }
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: #000; }
+::-webkit-scrollbar-thumb { background: var(--grey-lo); border-radius: 2px; }
+
+body {
+  background: var(--bg);
+  color: var(--white);
+  font-family: var(--font-serif);
+  overflow-x: hidden;
+  cursor: none;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--grey-hi); text-decoration: none; }
+ul { list-style: none; }
+
+@media (max-width: 768px) { body { cursor: auto; } }
+
+/* CURSOR */
+#cursor-dot {
+  position: fixed; top: 0; left: 0;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #00ff88;
+  box-shadow: 0 0 6px rgba(0,255,136,0.9), 0 0 14px rgba(0,255,136,0.5);
+  pointer-events: none; z-index: 9999;
+  transform: translate(-50%,-50%);
+}
+#cursor-ring {
+  position: fixed; top: 0; left: 0;
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 1.5px solid rgba(0,255,136,0.5);
+  box-shadow: 0 0 8px rgba(0,255,136,0.3), 0 0 20px rgba(0,255,136,0.12),
+              inset 0 0 8px rgba(0,255,136,0.06);
+  pointer-events: none; z-index: 9998;
+  transform: translate(-50%,-50%);
+  transition: width .18s ease, height .18s ease, border-color .18s ease;
+}
+#cursor-ring.hovering { width: 50px; height: 50px; border-color: rgba(0,255,136,0.75); }
+#cursor-ring.clicking { width: 20px; height: 20px; border-color: #00ff88; }
+#trail-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 9997; }
+#mobile-spark-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 9996; display: none; }
+@media (max-width: 768px) {
+  #cursor-dot, #cursor-ring, #trail-canvas { display: none; }
+  #mobile-spark-canvas { display: block; }
+}
+
+/* READING PROGRESS BAR */
+#read-prog {
+  position: fixed; top: 0; left: 0; z-index: 300;
+  height: 2px; width: 0%;
+  background: linear-gradient(90deg, #00ff88, #00e5ff);
+  box-shadow: 0 0 8px rgba(0,255,136,0.7);
+  transition: width 0.1s linear;
+}
+
+/* Scanlines + vignette */
+body::before {
+  content: ''; position: fixed; inset: 0;
+  background: repeating-linear-gradient(0deg,transparent,transparent 2px,
+    rgba(255,255,255,0.012) 2px,rgba(255,255,255,0.012) 4px);
+  pointer-events: none; z-index: 1;
+}
+body::after {
+  content: ''; position: fixed; inset: 0;
+  background: radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,0.65) 100%);
+  pointer-events: none; z-index: 1;
+}
+
+/* NAVIGATION */
+nav {
+  position: fixed; top: 1px; left: 0; right: 0; z-index: 200;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1rem 5vw;
+  background: rgba(0,0,0,0.9);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border);
+}
+.nav-back {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-mono); font-size: 0.6rem;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--grey-lo); cursor: pointer; transition: color 0.2s;
+}
+.nav-back svg { width: 13px; height: 13px; }
+.nav-back:hover { color: var(--white); }
+.nav-logo {
+  font-family: var(--font-display); font-size: 0.95rem;
+  letter-spacing: 0.14em; color: var(--white);
+}
+.nav-copy-btn {
+  font-family: var(--font-mono); font-size: 0.58rem;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--grey-lo); padding: 0.34rem 0.8rem;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: none; cursor: pointer; transition: all 0.2s;
+}
+.nav-copy-btn:hover { color: var(--white); border-color: var(--border-hi); }
+
+/* POST HEADER */
+.post-hdr {
+  max-width: var(--content-w); margin: 0 auto;
+  padding: 7.5rem 5vw 2.8rem;
+  position: relative; z-index: 10;
+}
+.post-cat {
+  font-family: var(--font-mono); font-size: 0.58rem;
+  letter-spacing: 0.28em; text-transform: uppercase;
+  color: var(--grey-lo); margin-bottom: 1.1rem; display: inline-block;
+}
+.post-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 5vw, 2.7rem);
+  font-weight: 400; color: var(--white);
+  letter-spacing: 0.03em; line-height: 1.18;
+  margin-bottom: 1.1rem;
+}
+.post-sub {
+  font-family: var(--font-serif); font-style: italic;
+  font-size: 1rem; color: var(--grey-mid);
+  line-height: 1.72; margin-bottom: 1.6rem; max-width: 560px;
+}
+.post-meta {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.9rem;
+  font-family: var(--font-mono); font-size: 0.58rem;
+  letter-spacing: 0.1em; color: #00ff88;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid rgba(0,255,136,0.35);
+  border-radius: var(--radius);
+  background: rgba(0,255,136,0.03);
+  box-shadow: 0 0 12px rgba(0,255,136,0.1), inset 0 0 10px rgba(0,255,136,0.03);
+  margin-bottom: 0;
+}
+.meta-a { color: #00ff88; }
+.meta-t { color: #00e5ff; }
+.meta-sep { color: rgba(0,255,136,0.3); }
+.post-tags {
+  display: flex; flex-wrap: wrap; gap: 5px;
+  margin-top: 1.2rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid rgba(0,255,136,0.35);
+  border-radius: var(--radius);
+  background: rgba(0,255,136,0.03);
+  box-shadow: 0 0 12px rgba(0,255,136,0.1), inset 0 0 10px rgba(0,255,136,0.03);
+}
+.ptag {
+  font-family: var(--font-mono); font-size: 0.55rem;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 3px 9px; border: 1px solid rgba(0,255,136,0.25);
+  border-radius: var(--radius); color: #00ff88;
+  background: rgba(0,255,136,0.05);
+}
+
+/* LAYOUT */
+.post-layout {
+  display: grid; grid-template-columns: 1fr 195px; gap: 3.5rem;
+  max-width: 920px; margin: 0 auto; padding: 0 5vw;
+  position: relative; z-index: 10;
+}
+@media (max-width: 840px) {
+  .post-layout { grid-template-columns: 1fr; }
+  .toc-aside { display: none; }
+}
+
+/* ARTICLE BODY TYPOGRAPHY */
+.post-body { padding: 3rem 0 5rem; }
+
+.post-body p {
+  font-family: var(--font-serif); font-size: 1.02rem;
+  line-height: 1.9; color: var(--grey-mid);
+  margin-bottom: 1.35rem;
+}
+.post-body p strong { color: var(--grey-hi); font-weight: 600; }
+
+.post-body h2 {
+  font-family: var(--font-display); font-size: 1.1rem;
+  font-weight: 400; color: var(--white); letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin: 2.8rem 0 0.9rem;
+  padding-left: 0.85rem; border-left: 1px solid var(--grey-lo);
+}
+.post-body h3 {
+  font-family: var(--font-mono); font-size: 0.85rem;
+  color: var(--grey-hi); margin: 2rem 0 0.65rem; letter-spacing: 0.04em;
+}
+.post-body h3::before { content: '## '; opacity: 0.3; }
+
+.post-body pre {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 1.3rem;
+  overflow-x: auto; margin: 1.6rem 0; position: relative;
+}
+.pre-lang {
+  position: absolute; top: 0.45rem; right: 0.7rem;
+  font-family: var(--font-mono); font-size: 0.52rem;
+  letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--grey-lo);
+}
+.post-body pre code {
+  font-family: var(--font-type); font-size: 0.82rem;
+  color: var(--grey-hi); line-height: 1.78;
+  background: none; padding: 0; border: none;
+}
+.copy-btn {
+  position: absolute; bottom: 0.55rem; right: 0.6rem;
+  font-family: var(--font-mono); font-size: 0.52rem;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+  color: var(--grey-lo); border-radius: 2px;
+  padding: 0.2rem 0.5rem; cursor: pointer; transition: all 0.2s;
+}
+.copy-btn:hover { background: rgba(255,255,255,0.1); color: var(--white); }
+
+.post-body code {
+  font-family: var(--font-type); font-size: 0.82em;
+  background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+  border-radius: 2px; padding: 0.07em 0.38em; color: var(--grey-hi);
+}
+
+.post-body blockquote {
+  border-left: 1px solid var(--grey-lo);
+  margin: 1.8rem 0; padding: 0.85rem 1.3rem;
+  background: var(--bg-glass);
+}
+.post-body blockquote p { font-style: italic; color: var(--grey-mid); margin: 0; }
+
+.callout { border-radius: var(--radius); padding: 0.95rem 1.3rem; margin: 1.8rem 0; display: flex; gap: 0.85rem; align-items: flex-start; }
+.callout-icon { flex-shrink: 0; margin-top: 0.1rem; }
+.callout p { margin: 0; font-family: var(--font-mono); font-size: 0.75rem; line-height: 1.65; }
+.callout.warn { background: rgba(255,255,255,0.04); border: 1px solid var(--border-hi); } .callout.warn p { color: var(--grey-hi); }
+.callout.info { background: var(--bg-glass); border: 1px solid var(--border); } .callout.info p { color: var(--grey-mid); }
+.callout.tip  { background: var(--bg-glass); border: 1px solid var(--border); } .callout.tip  p { color: var(--grey-hi); }
+
+.post-body ul, .post-body ol { padding-left: 1.3rem; margin-bottom: 1.3rem; }
+.post-body ul { list-style: none; }
+.post-body ul li {
+  font-family: var(--font-serif); font-size: 1rem;
+  line-height: 1.8; color: var(--grey-mid);
+  position: relative; padding-left: 1rem; margin-bottom: 0.35rem;
+}
+.post-body ul li::before { content: '›'; position: absolute; left: -0.1rem; color: var(--grey-lo); font-size: 0.9rem; }
+.post-body ol { list-style: decimal; }
+.post-body ol li { font-family: var(--font-serif); font-size: 1rem; line-height: 1.8; color: var(--grey-mid); margin-bottom: 0.35rem; }
+.post-body ol li::marker { color: var(--grey-lo); font-family: var(--font-mono); }
+
+.post-body a { color: var(--grey-hi); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(255,255,255,0.2); transition: text-decoration-color 0.2s; }
+.post-body a:hover { text-decoration-color: var(--grey-hi); }
+
+.post-body hr { border: none; border-top: 1px solid var(--border); margin: 2.8rem 0; }
+
+.post-body figure { margin: 2.2rem 0; }
+.post-body figure img { width: 100%; border: 1px solid var(--border); border-radius: var(--radius); }
+.post-body figcaption { font-family: var(--font-mono); font-size: 0.6rem; color: var(--grey-lo); letter-spacing: 0.08em; margin-top: 0.5rem; text-align: center; }
+
+.post-body table { width: 100%; border-collapse: collapse; margin: 1.8rem 0; font-family: var(--font-type); font-size: 0.82rem; }
+.post-body th { font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--grey-hi); border-bottom: 1px solid var(--border-hi); padding: 0.6rem 0.9rem; text-align: left; }
+.post-body td { padding: 0.6rem 0.9rem; color: var(--grey-mid); border-bottom: 1px solid var(--border); }
+.post-body tr:hover td { background: var(--bg-glass); }
+
+/* TOC SIDEBAR */
+.toc-aside {}
+.toc-sticky {
+  position: sticky; top: 5.5rem; padding: 1.2rem;
+  background: var(--bg-glass); border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.toc-ttl {
+  font-family: var(--font-mono); font-size: 0.56rem;
+  letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--grey-lo); margin-bottom: 0.85rem;
+}
+.toc-ttl::before { content: '// '; }
+.toc-list li { margin-bottom: 0.38rem; }
+.toc-list a {
+  font-family: var(--font-mono); font-size: 0.66rem;
+  color: var(--grey-lo); display: block;
+  padding: 0.1rem 0.4rem;
+  border-left: 1px solid transparent;
+  line-height: 1.5; transition: color 0.18s;
+}
+.toc-list a:hover, .toc-list a.active { color: var(--white); border-left-color: var(--grey-mid); text-decoration: none; }
+.toc-h3 { padding-left: 0.85rem; }
+
+/* POST END */
+.post-end {
+  max-width: var(--content-w); margin: 0 auto;
+  padding: 0 5vw 5rem; position: relative; z-index: 10;
+}
+.author-card {
+  background: rgba(0,255,136,0.03);
+  border: 1px solid rgba(0,255,136,0.35);
+  border-radius: var(--radius); padding: 1.4rem;
+  display: flex; gap: 1.2rem; align-items: flex-start;
+  margin-bottom: 2.2rem;
+  box-shadow: 0 0 14px rgba(0,255,136,0.1), inset 0 0 12px rgba(0,255,136,0.03);
+}
+.author-av {
+  width: 44px; height: 44px; flex-shrink: 0; border-radius: 50%;
+  background: rgba(0,255,136,0.08); border: 1px solid rgba(0,255,136,0.35);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-size: 0.85rem; color: #00ff88;
+  box-shadow: 0 0 8px rgba(0,255,136,0.2);
+}
+.author-name { font-family: var(--font-display); font-size: 0.8rem; color: #00ff88; letter-spacing: 0.06em; margin-bottom: 0.22rem; text-shadow: 0 0 8px rgba(0,255,136,0.4); }
+.author-bio  { font-family: var(--font-type); font-size: 0.78rem; color: var(--grey-mid); line-height: 1.65; }
+.author-bio a { color: #00ff88; }
+
+.rel-eyebrow { font-family: var(--font-mono); font-size: 0.55rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--grey-lo); margin-bottom: 1rem; }
+.rel-eyebrow::before { content: '// '; }
+.rel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 2.2rem; }
+@media (max-width: 480px) { .rel-grid { grid-template-columns: 1fr; } }
+.rel-card { background: var(--bg-glass); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; transition: border-color 0.2s, transform 0.2s; cursor: pointer; }
+.rel-card:hover { border-color: var(--border-hi); transform: translateY(-2px); text-decoration: none; }
+.rel-cat   { font-family: var(--font-mono); font-size: 0.54rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--grey-lo); margin-bottom: 0.35rem; }
+.rel-title { font-family: var(--font-type); font-size: 0.82rem; color: var(--white); line-height: 1.4; }
+
+.post-nav { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.8rem; padding-top: 1.6rem; border-top: 1px solid var(--border); }
+.post-nav a { font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--grey-lo); transition: color 0.2s; }
+.post-nav a:hover { color: var(--white); text-decoration: none; }
+.pnav-p::before { content: '← '; } .pnav-n::after { content: ' →'; }
+
+footer { border-top: 1px solid var(--border); padding: 1.8rem 5vw; text-align: center; position: relative; z-index: 10; }
+footer p { font-family: var(--font-mono); font-size: 0.56rem; color: var(--grey-lo); letter-spacing: 0.12em; opacity: 0.55; }
+footer a { color: var(--grey-mid); }
+</style>
+</head>
+<body>
+
+<div id="cursor-dot"></div>
+<div id="cursor-ring"></div>
+<canvas id="trail-canvas"></canvas>
+<canvas id="mobile-spark-canvas"></canvas>
+<div id="read-prog"></div>
+
+<!-- NAVIGATION -->
+<nav>
+  <a href="index.html" class="nav-back">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;flex-shrink:0;">
+      <path d="M19 12H5M12 5l-7 7 7 7"/>
+    </svg>
+    Back
+  </a>
+  <a href="index.html" class="nav-logo">0xd3x73r</a>
+  <button class="nav-copy-btn" id="copy-btn" onclick="cpURL()">Copy Link</button>
+</nav>
+
+<!-- POST HEADER -->
+<header class="post-hdr">
+  <span class="post-cat">▸ WiFi Security</span>
+
+  <h1 class="post-title">
+    How to create WiFi jammer and fake Access Point (AP) with NodeMCU(ESP8266)
+  </h1>
+
+  <p class="post-sub">
+    Turning a cheap $3 microcontroller into a wireless security testing tool — deauth attacks, fake AP beacon flooding, and probe requests using ESP8266 Deauther firmware. Educational purposes only.
+  </p>
+
+  <div class="post-meta">
+    <span class="meta-a">0xd3x73r</span>
+    <span class="meta-sep">·</span>
+    <span>2022-10-08</span>
+    <span class="meta-sep">·</span>
+    <span class="meta-t">~7 min read</span>
+    <span class="meta-sep">·</span>
+    <span>Field Notes</span>
+  </div>
+
+  <div class="post-tags">
+    <span class="ptag">ESP8266</span>
+    <span class="ptag">NodeMCU</span>
+    <span class="ptag">WiFi Security</span>
+    <span class="ptag">Deauth Attack</span>
+    <span class="ptag">Fake AP</span>
+    <span class="ptag">IoT Hacking</span>
+    <span class="ptag">Wireless Pentesting</span>
+  </div>
+</header>
+
+<!-- LAYOUT -->
+<div class="post-layout">
+
+  <main>
+  <article class="post-body">
+
+    <h2 id="s-overview">Overview</h2>
+    <p>
+      Microcontrollers are cheap, efficient, and widely used by security researchers. The NodeMCU ESP8266 — available in India for as little as ₹250 — is capable of performing many of the same wireless attacks as a Raspberry Pi, at a fraction of the cost. Today we walk through flashing it with the <strong>ESP8266 Deauther</strong> firmware to perform WiFi deauthentication attacks, fake Access Point creation, and beacon flooding.
+    </p>
+
+    <div class="callout warn">
+      <span class="callout-icon">⚠</span>
+      <p>Disclaimer: This is for educational purposes only. Never perform these attacks on networks or devices you do not own or have explicit written authorization to test. Unauthorized WiFi jamming is illegal in most jurisdictions.</p>
+    </div>
+
+    <h2 id="s-what">What We Cover</h2>
+    <ol>
+      <li>What is the ESP8266 (NodeMCU)?</li>
+      <li>Setting up the Arduino IDE environment</li>
+      <li>Flashing the ESP8266 Deauther firmware</li>
+      <li>Deauth attacks, WiFi jamming, and fake AP creation</li>
+    </ol>
+
+    <h2 id="s-esp">What is ESP8266?</h2>
+    <p>
+      NodeMCU is firmware for the ESP8266 developed using C, Espressif NON-OS SDK, and Lua. It's a low-cost microcontroller with a built-in WiFi module with a range of 4–70 meters (extendable by chaining a second unit as a WiFi repeater).
+    </p>
+
+    <h3 id="s-features">Key Features</h3>
+    <ul>
+      <li>Open-source and community-supported</li>
+      <li>Interactive web interface after flashing</li>
+      <li>Programmable via Arduino IDE</li>
+      <li>Low cost — under ₹500 on most Indian marketplaces</li>
+      <li>Built-in WiFi — no extra hardware needed</li>
+    </ul>
+
+    <h3 id="s-requirements">Pre-requirements</h3>
+    <ul>
+      <li>NodeMCU (ESP8266 12E)</li>
+      <li>USB data cable (must be a <strong>data cable</strong>, not a charge-only cable)</li>
+    </ul>
+
+    <h2 id="s-setup">Setting Up the Environment</h2>
+    <p>
+      Download and install <strong>Arduino IDE</strong> from <a href="https://www.arduino.cc/en/software" target="_blank" rel="noopener">arduino.cc/en/software</a>. Once installed, add the ESP8266 board package:
+    </p>
+
+    <ol>
+      <li>Open Arduino IDE → <code>File → Preferences</code></li>
+      <li>In <strong>Additional Board Manager URLs</strong>, paste the URL below and click OK</li>
+      <li>Go to <code>Tools → Board → Boards Manager</code>, search <code>esp8266</code>, and install</li>
+    </ol>
+
+    <pre><span class="pre-lang">URL</span><code>http://arduino.esp8266.com/stable/package_esp8266com_index.json</code></pre>
+
+    <div class="callout info">
+      <span class="callout-icon">ℹ</span>
+      <p>Always use a quality data cable when flashing. A charge-only cable will not work — the ESP8266 requires active data transfer to receive the firmware binary.</p>
+    </div>
+
+    <h2 id="s-flash">Flashing: ESP8266 Becomes a Weapon</h2>
+    <p>
+      Download the <strong>ESP8266 Deauther</strong> firmware from the SpacehuhnTech GitHub repository, then open <code>esp8266_deauther.ino</code> in Arduino IDE.
+    </p>
+
+    <pre><span class="pre-lang">Git</span><code>git clone https://github.com/SpacehuhnTech/esp8266_deauther.git</code></pre>
+
+    <p>
+      In the IDE, click <strong>Verify</strong> to compile, then <strong>Upload</strong> to flash. After successful upload, unplug and re-plug the device. Alternatively, if you already have the binary, use the <a href="https://github.com/nodemcu/nodemcu-flasher" target="_blank" rel="noopener">ESP8266 Flasher tool</a> directly.
+    </p>
+
+    <h2 id="s-attack">Attack Modes</h2>
+    <p>
+      After flashing, connect to the NodeMCU's WiFi AP (SSID: <code>pwned</code> / Password: <code>deauther</code>), then open <code>192.168.4.1</code> in any browser. The web interface exposes three attack types:
+    </p>
+
+    <h3 id="s-deauth">Deauth — WiFi Jammer</h3>
+    <p>
+      Sends 802.11 deauthentication frames targeting the link between a router and a specific device, effectively disconnecting the victim from the network. Select a target AP from the Scan tab, then trigger Deauth from the Attack tab.
+    </p>
+
+    <div class="callout warn">
+      <span class="callout-icon">⚠</span>
+      <p>You may lose your own connection to the NodeMCU AP when a deauth attack starts. This is expected — reconnect after stopping the attack.</p>
+    </div>
+
+    <h3 id="s-beacon">Beacon — Fake AP Flooding</h3>
+    <p>
+      Broadcasts up to <strong>1,000 fake SSIDs</strong> simultaneously — cloning nearby networks or generating entirely fictitious ones. Navigate to the SSIDs tab to build your list, clone selected APs, or enable Random Mode for auto-generated names at a configurable interval.
+    </p>
+
+    <pre><span class="pre-lang">Web UI</span><code>SSIDs Tab → Enter SSID name → ADD
+           → CLONE SELECTED APs  (mirrors real nearby networks)
+           → ENABLE RANDOM MODE  (auto-generates names on interval)</code></pre>
+
+    <h3 id="s-probe">Probe — Tracker Confusion</h3>
+    <p>
+      Sends probe requests asking for specific network names from your SSID list. This confuses passive WiFi tracking systems and can cause some attack tools to spawn fake networks in response — useful for identifying rogue monitoring infrastructure.
+    </p>
+
+    <h2 id="s-ioc">Attack Summary Table</h2>
+    <table>
+      <thead><tr><th>Attack Mode</th><th>Method</th><th>Effect</th></tr></thead>
+      <tbody>
+        <tr><td>Deauth</td><td>802.11 deauth frames</td><td>Disconnects target device from AP</td></tr>
+        <tr><td>Beacon</td><td>Fake SSID broadcast</td><td>Floods airspace with up to 1000 fake networks</td></tr>
+        <tr><td>Probe</td><td>Probe request flooding</td><td>Confuses WiFi trackers, exposes passive monitors</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="s-fix">Defensive Takeaways</h2>
+    <ul>
+      <li>Enable <strong>802.11w (Management Frame Protection)</strong> on your router — makes deauth attacks ineffective</li>
+      <li>Use WPA3 where available; MFP is mandatory in WPA3</li>
+      <li>Deploy a wireless IDS (e.g. Kismet, WIDS) to alert on deauth frame storms</li>
+      <li>Treat unexpected disconnections in sensitive environments as potential deauth incidents</li>
+    </ul>
+
+    <blockquote>
+      <p>The scariest attacks aren't zero-days. They're the ₹300 modules sitting in every hobbyist's drawer, already capable of disrupting enterprise wireless.</p>
+    </blockquote>
+
+    <hr/>
+    <p>
+      For further reading: <a href="https://randomnerdtutorials.com/projects-esp8266/" target="_blank" rel="noopener">RandomNerdTutorials ESP8266 Projects</a> · <a href="https://robu.in/a-beginner-guide-to-nodemcu/" target="_blank" rel="noopener">Beginner Guide to NodeMCU</a>. Originally published on <a href="https://medium.com/@nroshan005/how-to-create-wifi-jammer-and-fake-access-point-ap-with-nodemcu-esp8266-85cc723d087c" target="_blank" rel="noopener">Medium</a>.
+    </p>
+
+  </article>
+  </main>
+
+  <!-- TABLE OF CONTENTS -->
+  <aside class="toc-aside">
+    <div class="toc-sticky">
+      <p class="toc-ttl">Contents</p>
+      <ul class="toc-list" id="toc">
+        <li><a href="#s-overview">Overview</a></li>
+        <li><a href="#s-what">What We Cover</a></li>
+        <li><a href="#s-esp">What is ESP8266?</a></li>
+        <li><a class="toc-h3" href="#s-features">Features</a></li>
+        <li><a class="toc-h3" href="#s-requirements">Requirements</a></li>
+        <li><a href="#s-setup">Environment Setup</a></li>
+        <li><a href="#s-flash">Flashing Firmware</a></li>
+        <li><a href="#s-attack">Attack Modes</a></li>
+        <li><a class="toc-h3" href="#s-deauth">Deauth</a></li>
+        <li><a class="toc-h3" href="#s-beacon">Beacon</a></li>
+        <li><a class="toc-h3" href="#s-probe">Probe</a></li>
+        <li><a href="#s-ioc">Attack Summary</a></li>
+        <li><a href="#s-fix">Defensive Takeaways</a></li>
+      </ul>
+    </div>
+  </aside>
+
+</div>
+
+<!-- POST END -->
+<div class="post-end">
+
+  <div class="author-card">
+    <div class="author-av">0x</div>
+    <div>
+      <p class="author-name">0xd3x73r</p>
+      <p class="author-bio">Penetration Tester · Hacker · Security Analyst · Cybersecurity Researcher<br/>
+        <a href="https://twitter.com/0xd3X73r" target="_blank" rel="noopener">Twitter: @0xd3X73r</a> ·
+        <a href="https://www.linkedin.com/in/roshan-05n" target="_blank" rel="noopener">LinkedIn</a> ·
+        <a href="index.html">↗ More writeups</a>
+      </p>
+    </div>
+  </div>
+
+  <p class="rel-eyebrow">Related Field Notes</p>
+  <div class="rel-grid">
+    <a href="#" class="rel-card">
+      <p class="rel-cat">Wireless Security</p>
+      <p class="rel-title">ESP8266 WiFi Extender — Boosting Deauther Range</p>
+    </a>
+    <a href="#" class="rel-card">
+      <p class="rel-cat">IoT Hacking</p>
+      <p class="rel-title">Firmware Extraction from Embedded Devices</p>
+    </a>
+  </div>
+
+  <div class="post-nav">
+    <a href="#" class="pnav-p">Getting Started with Kali Linux</a>
+    <a href="#" class="pnav-n">Cracking WPA2 with Aircrack-ng</a>
+  </div>
+
+</div>
+
+<footer>
+  <p>© 2025 0xd3x73r · All rights reserved · <a href="index.html">Return to base</a></p>
+</footer>
+
+<!-- JS: CURSOR + TRAIL (desktop) / SPARK (mobile) -->
+<!-- OLD FLOATING PARTICLES AND CURSOR EFFECTS COMMENTED 
+<script>
+(function(){
+  var isMobile = window.innerWidth<=768;
+  if(!isMobile){
+    var dot  = document.getElementById('cursor-dot');
+    var ring = document.getElementById('cursor-ring');
+    var tc   = document.getElementById('trail-canvas');
+    var tx   = tc.getContext('2d');
+    var mx=0,my=0,rx=0,ry=0,sparks=[];
+    function rsz(){ tc.width=window.innerWidth; tc.height=window.innerHeight; }
+    rsz(); window.addEventListener('resize',rsz);
+    document.addEventListener('mousemove',function(e){
+      mx=e.clientX; my=e.clientY;
+      dot.style.left=mx+'px'; dot.style.top=my+'px';
+      if(Math.random()>0.45) return;
+      sparks.push({ x:mx,y:my, vx:(Math.random()-0.5)*1.8, vy:(Math.random()-0.5)*1.8, r:Math.random()*2.2+0.6, alpha:0.55, col:Math.random()>0.5?'0,255,136':'0,220,160' });
+    });
+    document.querySelectorAll('a,button,.rel-card').forEach(function(el){
+      el.addEventListener('mouseenter',function(){ring.classList.add('hovering');});
+      el.addEventListener('mouseleave',function(){ring.classList.remove('hovering');});
+    });
+    document.addEventListener('mousedown',function(){ring.classList.add('clicking');});
+    document.addEventListener('mouseup',  function(){ring.classList.remove('clicking');});
+    (function loop(){
+      rx+=(mx-rx)*0.13; ry+=(my-ry)*0.13;
+      ring.style.left=rx+'px'; ring.style.top=ry+'px';
+      tx.clearRect(0,0,tc.width,tc.height);
+      for(var i=sparks.length-1;i>=0;i--){
+        var s=sparks[i]; s.x+=s.vx; s.y+=s.vy; s.alpha-=0.030; s.r*=0.97;
+        if(s.alpha<=0){sparks.splice(i,1);continue;}
+        tx.beginPath(); tx.arc(s.x,s.y,s.r,0,Math.PI*2);
+        tx.fillStyle='rgba('+s.col+','+s.alpha+')'; tx.fill();
+      }
+      requestAnimationFrame(loop);
+    })();
+  } else {
+    var mc  = document.getElementById('mobile-spark-canvas');
+    var ctx = mc.getContext('2d');
+    var W2, H2;
+    var particles = [];
+    var bursts    = [];
+    function rsz2(){ W2=mc.width=window.innerWidth; H2=mc.height=window.innerHeight; }
+    rsz2(); window.addEventListener('resize',function(){ rsz2(); initP(); });
+    function spawnP(randomY){
+      return { x:Math.random()*W2, y:randomY?Math.random()*H2:H2+4, vx:(Math.random()-0.5)*0.4, vy:-(Math.random()*0.5+0.15), r:Math.random()*1.4+0.4, alpha:Math.random()*0.35+0.08, col:Math.random()>0.5?'0,255,136':'0,220,160' };
+    }
+    function initP(){ particles=[]; var n=Math.min(Math.floor(W2*H2/9000),35); for(var i=0;i<n;i++) particles.push(spawnP(true)); }
+    initP();
+    document.addEventListener('click',function(e){ for(var k=0;k<10;k++){ var angle=(Math.PI*2*k)/10; var spd=Math.random()*2.5+1; bursts.push({x:e.clientX,y:e.clientY,vx:Math.cos(angle)*spd,vy:Math.sin(angle)*spd,r:Math.random()*2.5+1,alpha:0.75,col:'0,255,136'}); } });
+    (function loop(){
+      ctx.clearRect(0,0,W2,H2);
+      for(var i=particles.length-1;i>=0;i--){ var p=particles[i]; p.x+=p.vx; p.y+=p.vy; if(p.y<-4){particles[i]=spawnP(false);continue;} if(p.x<-4) p.x=W2+4; if(p.x>W2+4) p.x=-4; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fillStyle='rgba('+p.col+','+p.alpha+')'; ctx.fill(); }
+      for(var j=bursts.length-1;j>=0;j--){ var b=bursts[j]; b.x+=b.vx; b.y+=b.vy; b.alpha-=0.038; b.r*=0.95; if(b.alpha<=0){bursts.splice(j,1);continue;} ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.fillStyle='rgba('+b.col+','+b.alpha+')'; ctx.fill(); }
+      requestAnimationFrame(loop);
+    })();
+  }
+})();
+</script>
+-->
+<!-- NEW CURSOR AND FLOATING PARTICLES -->
+<!-- BLOCK: JS — CURSOR + MOUSE TRAIL + AMBIENT PARTICLES (desktop) -->
+<script>
+(function(){
+  if(window.innerWidth<=768) return;
+
+  var dot  = document.getElementById('cursor-dot');
+  var ring = document.getElementById('cursor-ring');
+  var tc   = document.getElementById('trail-canvas');
+  var tx   = tc.getContext('2d');
+  var mx=0, my=0, rx=0, ry=0, sparks=[], particles=[];
+
+  function rsz(){ tc.width=window.innerWidth; tc.height=window.innerHeight; }
+  rsz(); window.addEventListener('resize', function(){ rsz(); initParticles(); });
+
+  /* ── Ambient floating particles ── */
+  function spawnParticle(randomY){
+    return {
+      x:     Math.random() * tc.width,
+      y:     randomY ? Math.random() * tc.height : tc.height + 4,
+      vx:    (Math.random() - 0.5) * 0.4,
+      vy:    -(Math.random() * 0.5 + 0.15),
+      r:     Math.random() * 1.4 + 0.4,
+      alpha: Math.random() * 0.30 + 0.06,
+      col:   Math.random() > 0.5 ? '0,255,136' : '0,220,160'
+    };
+  }
+  function initParticles(){
+    particles = [];
+    var n = Math.min(Math.floor(tc.width * tc.height / 9000), 45);
+    for(var i = 0; i < n; i++) particles.push(spawnParticle(true));
+  }
+  initParticles();
+
+  /* ── Mouse trail sparks ── */
+  document.addEventListener('mousemove', function(e){
+    mx = e.clientX; my = e.clientY;
+    dot.style.left = mx+'px'; dot.style.top = my+'px';
+    if(Math.random() > 0.45) return;
+    sparks.push({
+      x: mx, y: my,
+      vx: (Math.random()-0.5)*1.8, vy: (Math.random()-0.5)*1.8,
+      r: Math.random()*2.2+0.6, alpha: 0.55,
+      col: Math.random()>0.5 ? '0,255,136' : '0,220,160'
+    });
+  });
+
+  /* ── Hover / click states ── */
+  document.querySelectorAll('a,button,.blog-card,.social-btn,.tag,.tl-item').forEach(function(el){
+    el.addEventListener('mouseenter', function(){ ring.classList.add('hovering'); });
+    el.addEventListener('mouseleave', function(){ ring.classList.remove('hovering'); });
+  });
+  document.addEventListener('mousedown', function(){ ring.classList.add('clicking'); });
+  document.addEventListener('mouseup',   function(){ ring.classList.remove('clicking'); });
+
+  /* ── Main loop ── */
+  (function loop(){
+    /* Ring lag */
+    rx += (mx-rx)*0.13; ry += (my-ry)*0.13;
+    ring.style.left = rx+'px'; ring.style.top = ry+'px';
+
+    tx.clearRect(0, 0, tc.width, tc.height);
+
+    /* Ambient particles */
+    for(var i = particles.length-1; i >= 0; i--){
+      var p = particles[i];
+      p.x += p.vx; p.y += p.vy;
+      if(p.y < -4){ particles[i] = spawnParticle(false); continue; }
+      if(p.x < -4)       p.x = tc.width + 4;
+      if(p.x > tc.width+4) p.x = -4;
+      tx.beginPath(); tx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      tx.fillStyle = 'rgba('+p.col+','+p.alpha+')'; tx.fill();
+    }
+
+    /* Mouse trail sparks */
+    for(var j = sparks.length-1; j >= 0; j--){
+      var s = sparks[j];
+      s.x += s.vx; s.y += s.vy; s.alpha -= 0.030; s.r *= 0.97;
+      if(s.alpha <= 0){ sparks.splice(j,1); continue; }
+      tx.beginPath(); tx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+      tx.fillStyle = 'rgba('+s.col+','+s.alpha+')'; tx.fill();
+    }
+
+    requestAnimationFrame(loop);
+  })();
+})();
+</script>
+
+
+<!-- JS: READING PROGRESS BAR -->
+<script>
+window.addEventListener('scroll',function(){
+  var s=window.scrollY, h=document.documentElement.scrollHeight-window.innerHeight;
+  document.getElementById('read-prog').style.width=(h>0?(s/h)*100:0)+'%';
+});
+</script>
+
+<!-- JS: TOC ACTIVE HIGHLIGHT -->
+<script>
+(function(){
+  var hdgs  = Array.from(document.querySelectorAll('.post-body h2[id],.post-body h3[id]'));
+  var links = document.querySelectorAll('#toc a');
+  var OFFSET = 140;
+  function upd(){
+    var scrollY = window.scrollY;
+    var cur = hdgs.length ? hdgs[0].id : '';
+    for(var i=0;i<hdgs.length;i++){
+      var top = hdgs[i].getBoundingClientRect().top + scrollY;
+      if(scrollY+OFFSET>=top){ cur=hdgs[i].id; } else { break; }
+    }
+    links.forEach(function(a){ a.classList.toggle('active', a.getAttribute('href')==='#'+cur); });
+  }
+  window.addEventListener('load',upd);
+  window.addEventListener('scroll',upd,{passive:true});
+  upd();
+})();
+</script>
+
+<!-- JS: CODE COPY BUTTONS -->
+<script>
+document.querySelectorAll('.post-body pre').forEach(function(pre){
+  var btn=document.createElement('button');
+  btn.className='copy-btn'; btn.textContent='copy';
+  btn.addEventListener('click',function(){
+    var code=pre.querySelector('code');
+    if(!code) return;
+    navigator.clipboard.writeText(code.innerText).then(function(){
+      btn.textContent='copied!';
+      setTimeout(function(){btn.textContent='copy';},1500);
+    });
+  });
+  pre.appendChild(btn);
+});
+</script>
+
+<!-- JS: COPY PAGE URL -->
+<script>
+function cpURL(){
+  navigator.clipboard.writeText(window.location.href).then(function(){
+    var b=document.getElementById('copy-btn');
+    b.textContent='Copied!';
+    setTimeout(function(){b.textContent='Copy Link';},1800);
+  });
+}
+</script>
+
+</body>
+</html>
